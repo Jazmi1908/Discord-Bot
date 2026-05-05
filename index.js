@@ -9,8 +9,8 @@ const Nodes = [{
   name: 'main',
   url: process.env.LAVALINK_HOST,
   auth: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
-  secure: true,
-  port: 443
+  secure: false,
+  port: 8080
 }];
 
 const commands = [
