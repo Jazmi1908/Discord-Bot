@@ -187,4 +187,4 @@ client.once('ready', () => {
   console.log(`Ready! Logged in as ${client.user.tag}`);
 });
 
-client.login('MTExMDAzOTMwNzEyNjg0NTUzMA.GZAJQF.taSeMY-SJTttqDpEXkuaiURsfjp5L0fvtKZrCI');
+client.login('process.env.TOKEN');
