@@ -2,14 +2,13 @@ const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActionRowB
 const { Shoukaku, Connectors } = require('shoukaku');
 
 const TOKEN = process.env.TOKEN;
-console.log('Token received:', TOKEN ? 'YES - length: ' + TOKEN.length : 'NO - undefined');
 const CLIENT_ID = process.env.CLIENT_ID;
 
 const Nodes = [{
   name: 'main',
   url: process.env.LAVALINK_HOST || 'lavalink-production-4215.up.railway.app',
   auth: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
-  secure: true, // Sesuai untuk port 433/443
+  secure: true,
   port: 433
 }];
 
@@ -66,7 +65,6 @@ function getMusicButtons(paused = false) {
 }
 
 client.on('interactionCreate', async (interaction) => {
-
   if (interaction.isButton()) {
     const player = shoukaku.players.get(interaction.guild.id);
     if (!player) return interaction.reply({ content: 'No song is playing!', ephemeral: true });
@@ -89,12 +87,10 @@ client.on('interactionCreate', async (interaction) => {
       player.disconnect();
       await interaction.update({ content: 'Stopped and left voice channel.', components: [] });
     }
-
     return;
   }
 
   if (!interaction.isChatInputCommand()) return;
-
   const { commandName } = interaction;
 
   if (commandName === 'play') {
@@ -107,8 +103,9 @@ client.on('interactionCreate', async (interaction) => {
     const node = shoukaku.nodes.values().next().value;
     if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
 
-    const isUrl = query.startsWith('http');
     let identifier = query;
+    // Semak jika input adalah URL atau bukan
+    const isUrl = query.startsWith('http');
 
     if (!isUrl) {
       identifier = `ytsearch:${query}`;
@@ -139,6 +136,7 @@ client.on('interactionCreate', async (interaction) => {
     if (!player) {
       player = await shoukaku.joinVoiceChannel({
         guildId: interaction.guild.id,
+        channelId: interaction.guild.id,
         channelId: voiceChannel.id,
         shardId: 0,
       });
