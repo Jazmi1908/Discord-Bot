@@ -9,40 +9,9 @@ const Nodes = [{
   name: 'main',
   url: process.env.LAVALINK_HOST || 'lavalink-production-4215.up.railway.app',
   auth: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
-  secure: true, // WAJIB 'true' jika menggunakan port 443 / 433
-  port: 443    // Sila guna 443 atau 433 (mengikut URL anda)
+  secure: true, // Sesuai untuk port 433/443
+  port: 433
 }];
-    
-  const node = shoukaku.nodes.values().next().value;
-    if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
-
-    const isUrl = query.startsWith('http');
-    let identifier = query;
-
-    if (!isUrl) {
-      identifier = `ytsearch:${query}`;
-    }
-
-    let result;
-    try {
-      result = await node.rest.resolve(identifier);
-    } catch (e) {
-      console.error('Lavalink resolve error:', e);
-    }
-
-    if (!result || !result.data || !result.data.length) {
-      try {
-        if (!isUrl) {
-          result = await node.rest.resolve(`ytsearch:${query}`);
-        }
-      } catch (e) {
-        console.error('Fallback search failed:', e);
-      }
-    }
-
-    if (!result || !result.data || !result.data.length) {
-      return interaction.editReply('Song not found!');
-    }
 
 const commands = [
   new SlashCommandBuilder()
@@ -138,10 +107,9 @@ client.on('interactionCreate', async (interaction) => {
     const node = shoukaku.nodes.values().next().value;
     if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
 
-   const isUrl = query.startsWith('http');
+    const isUrl = query.startsWith('http');
     let identifier = query;
 
-    // Jika bukan URL, kita cuba guna carian ytsearch
     if (!isUrl) {
       identifier = `ytsearch:${query}`;
     }
@@ -153,12 +121,9 @@ client.on('interactionCreate', async (interaction) => {
       console.error('Lavalink resolve error:', e);
     }
 
-    // Jika carian gagal, kita cuba guna pautan terus/fallback ringkas
     if (!result || !result.data || !result.data.length) {
       try {
-        if (!isUrl) {
-          result = await node.rest.resolve(`ytsearch:${query}`);
-        }
+        result = await node.rest.resolve(`ytsearch:${query}`);
       } catch (e) {
         console.error('Fallback search failed:', e);
       }
@@ -179,7 +144,6 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    // Mengaktifkan sambungan audio ke Discord
     await player.connect();
 
     if (!queues.has(interaction.guild.id)) queues.set(interaction.guild.id, []);
@@ -210,7 +174,6 @@ client.on('interactionCreate', async (interaction) => {
       const activeQueue = queues.get(interaction.guild.id) || [];
       if (activeQueue.length > 0) {
         const next = activeQueue.shift();
-        // Menggunakan track yang telah dikodkan untuk main semula
         await player.playTrack({ track: next.encoded });
         pausedState.set(interaction.guild.id, false);
 
@@ -249,7 +212,7 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.once('clientReady', () => {
+client.once('ready', () => {
   console.log(`Ready! Logged in as ${client.user.tag}`);
 });
 
