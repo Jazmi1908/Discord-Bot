@@ -104,15 +104,37 @@ client.on('interactionCreate', async (interaction) => {
 
     await interaction.deferReply();
 
-    // Membetulkan ralat shoukaku.nodes.first() dengan kaedah untuk objek Map
     const node = shoukaku.nodes.values().next().value;
     if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
 
-    // Carian URL atau carian biasa
+    // Tukar carian supaya mencari daripada ytsearch atau terus dari pautan
     const isUrl = query.startsWith('http');
-    const result = await node.rest.resolve(isUrl ? query : `ytsearch:${query}`);
+    let identifier = query;
+
+    if (!isUrl) {
+      // Mengubah carian teks kepada format carian yang lebih serasi dengan YouTube Music (ytmsearch) jika ytsearch bermasalah
+      identifier = `ytmsearch:${query}`;
+    }
+
+    let result;
+    try {
+      result = await node.rest.resolve(identifier);
+    } catch (e) {
+      console.error('Lavalink resolve error:', e);
+    }
     
-    if (!result?.data?.length) return interaction.editReply('Song not found!');
+    if (!result || !result.data || result.data.length === 0) {
+      // Jika carian gagal, cuba gunakan 'ytsearch' sebagai sandaran (fallback)
+      try {
+        result = await node.rest.resolve(`ytsearch:${query}`);
+      } catch (e) {
+        console.error('Fallback search failed:', e);
+      }
+    }
+    
+    if (!result || !result.data || !result.data.length) {
+      return interaction.editReply('Song not found!');
+    }
 
     const track = result.data[0];
     let player = shoukaku.players.get(interaction.guild.id);
@@ -189,7 +211,7 @@ client.on('interactionCreate', async (interaction) => {
   }
 });
 
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`Ready! Logged in as ${client.user.tag}`);
 });
 
