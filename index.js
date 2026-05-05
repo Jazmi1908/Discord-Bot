@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActionRowB
 const { Shoukaku, Connectors } = require('shoukaku');
 
 const TOKEN = process.env.TOKEN;
+console.log('Token received:', TOKEN ? 'YES - length: ' + TOKEN.length : 'NO - undefined');
 const CLIENT_ID = process.env.CLIENT_ID;
 
 const Nodes = [{
@@ -104,7 +105,6 @@ client.on('interactionCreate', async (interaction) => {
     if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
 
     let identifier = query;
-    // Semak jika input adalah URL atau bukan
     const isUrl = query.startsWith('http');
 
     if (!isUrl) {
@@ -136,7 +136,6 @@ client.on('interactionCreate', async (interaction) => {
     if (!player) {
       player = await shoukaku.joinVoiceChannel({
         guildId: interaction.guild.id,
-        channelId: interaction.guild.id,
         channelId: voiceChannel.id,
         shardId: 0,
       });
