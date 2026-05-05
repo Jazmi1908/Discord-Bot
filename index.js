@@ -17,12 +17,12 @@ const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
 // ✅ FIXED Lavalink config (WAJIB guna ENV)
-const Nodes = [{
+const Nodes = [{ 
   name: 'main',
   url: process.env.LAVALINK_HOST,
-  auth: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
-  secure: false,
-  port: parseInt(process.env.LAVALINK_PORT) || 2333
+  auth: process.env.LAVALINK_PASSWORD,
+  secure: true,                 
+  port: parseInt(process.env.LAVALINK_PORT) || 443
 }];
 
 // ✅ Slash Commands
