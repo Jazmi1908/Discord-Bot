@@ -9,10 +9,16 @@ const Nodes = [{
   name: 'main',
   url: process.env.LAVALINK_HOST || 'lavalink-production-4215.up.railway.app',
   auth: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
-  secure: true, const isUrl = query.startsWith('http');
+  secure: true, // WAJIB 'true' jika menggunakan port 443 / 433
+  port: 443    // Sila guna 443 atau 433 (mengikut URL anda)
+}];
+    
+  const node = shoukaku.nodes.values().next().value;
+    if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
+
+    const isUrl = query.startsWith('http');
     let identifier = query;
 
-    // Jika bukan URL, kita cuba guna carian ytsearch
     if (!isUrl) {
       identifier = `ytsearch:${query}`;
     }
@@ -24,7 +30,6 @@ const Nodes = [{
       console.error('Lavalink resolve error:', e);
     }
 
-    // Jika carian gagal, kita cuba guna pautan terus/fallback ringkas
     if (!result || !result.data || !result.data.length) {
       try {
         if (!isUrl) {
@@ -34,8 +39,10 @@ const Nodes = [{
         console.error('Fallback search failed:', e);
       }
     }
-  port: 433 
-}];
+
+    if (!result || !result.data || !result.data.length) {
+      return interaction.editReply('Song not found!');
+    }
 
 const commands = [
   new SlashCommandBuilder()
