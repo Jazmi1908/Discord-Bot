@@ -104,19 +104,15 @@ client.on('interactionCreate', async (interaction) => {
 
     await interaction.deferReply();
 
+    // Membetulkan ralat shoukaku.nodes.first() dengan kaedah untuk objek Map
     const node = shoukaku.nodes.values().next().value;
-    if (!node) {
-      return interaction.editReply('Tiada nod Lavalink yang bersambung buat masa ini.');
-    }
+    if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
 
-    // Menggunakan regex untuk mengesan sama ada ia adalah pautan terus YouTube
-    const isUrl = query.startsWith('https://');
-    const identifier = isUrl ? query : `ytsearch:${query}`;
-
-    const result = await node.rest.resolve(identifier);
-    if (!result?.data?.length) {
-      return interaction.editReply('Song not found!');
-    }
+    // Carian URL atau carian biasa
+    const isUrl = query.startsWith('http');
+    const result = await node.rest.resolve(isUrl ? query : `ytsearch:${query}`);
+    
+    if (!result?.data?.length) return interaction.editReply('Song not found!');
 
     const track = result.data[0];
     let player = shoukaku.players.get(interaction.guild.id);
@@ -132,7 +128,6 @@ client.on('interactionCreate', async (interaction) => {
     if (!queues.has(interaction.guild.id)) queues.set(interaction.guild.id, []);
     const queue = queues.get(interaction.guild.id);
 
-    // Membetulkan semakan status pemain
     if (player.playing || player.current) {
       queue.push(track);
       return interaction.editReply(`Added to queue: **${track.info.title}**`);
