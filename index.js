@@ -104,7 +104,7 @@ client.on('interactionCreate', async (interaction) => {
 
     await interaction.deferReply();
 
-    const node = shoukaku.nodes.first(); // Membetulkan ralat node resolver Shoukaku
+    const node = shoukaku.nodes.values().next().value; // Membetulkan ralat node resolver Shoukaku
     const result = await node.rest.resolve(`ytsearch:${query}`);
     if (!result?.data?.length) return interaction.editReply('Song not found!');
 
