@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActionRowB
 const { Shoukaku, Connectors } = require('shoukaku');
 
 const TOKEN = process.env.TOKEN;
+console.log('Token received:', TOKEN ? 'YES - length: ' + TOKEN.length : 'NO - undefined');
 const CLIENT_ID = process.env.CLIENT_ID;
 
 const Nodes = [{
