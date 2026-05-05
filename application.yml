@@ -1,0 +1,27 @@
+server:
+  port: 2333
+  address: 0.0.0.0
+
+lavalink:
+  server:
+    password: "password123"
+    sources:
+      youtube: true 
+      soundcloud: true
+
+plugins:
+  youtube:
+    enabled: true
+    allowSearch: true
+  
+  # Tetapan LavaSrc ditambah di sini
+  lavasrc:
+    providers:
+      - "ytsearch:\"%q%\""
+      - "scsearch:\"%q%\""
+    sources:
+      spotify: true
+      applemusic: true
+      deezer: true
+
+pluginsDir: "./plugins"
