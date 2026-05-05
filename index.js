@@ -104,9 +104,19 @@ client.on('interactionCreate', async (interaction) => {
 
     await interaction.deferReply();
 
-    const node = shoukaku.nodes.values().next().value; // Membetulkan ralat node resolver Shoukaku
-    const result = await node.rest.resolve(`ytsearch:${query}`);
-    if (!result?.data?.length) return interaction.editReply('Song not found!');
+    const node = shoukaku.nodes.values().next().value;
+    if (!node) {
+      return interaction.editReply('Tiada nod Lavalink yang bersambung buat masa ini.');
+    }
+
+    // Menggunakan regex untuk mengesan sama ada ia adalah pautan terus YouTube
+    const isUrl = query.startsWith('https://');
+    const identifier = isUrl ? query : `ytsearch:${query}`;
+
+    const result = await node.rest.resolve(identifier);
+    if (!result?.data?.length) {
+      return interaction.editReply('Song not found!');
+    }
 
     const track = result.data[0];
     let player = shoukaku.players.get(interaction.guild.id);
