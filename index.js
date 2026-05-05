@@ -134,15 +134,20 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     const track = result.data[0];
+    
+    // Kod sambungan dan player diletakkan di sini (Baris 119 - 128)
     let player = shoukaku.players.get(interaction.guild.id);
 
     if (!player) {
       player = await shoukaku.joinVoiceChannel({
         guildId: interaction.guild.id,
         channelId: voiceChannel.id,
-        shardId: 0,
+        shardId: 0, // Pastikan shard ID betul
       });
     }
+
+    // Sambungkan pemain dengan node
+    await player.connect();
 
     if (!queues.has(interaction.guild.id)) queues.set(interaction.guild.id, []);
     const queue = queues.get(interaction.guild.id);
@@ -167,7 +172,6 @@ client.on('interactionCreate', async (interaction) => {
       components: [getMusicButtons(false)]
     });
 
-    // Gelung (loop) acara 'end' yang dibetulkan supaya memainkan trek seterusnya
     player.removeAllListeners('end');
     player.on('end', async () => {
       const activeQueue = queues.get(interaction.guild.id) || [];
