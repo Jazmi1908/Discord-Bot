@@ -104,7 +104,7 @@ client.on('interactionCreate', async (interaction) => {
 
     await interaction.deferReply();
 
-    const node = shoukaku.options.nodeResolver(shoukaku.nodes);
+    const node = shoukaku.nodes.first(); // Membetulkan ralat node resolver Shoukaku
     const result = await node.rest.resolve(`ytsearch:${query}`);
     if (!result?.data?.length) return interaction.editReply('Song not found!');
 
@@ -122,7 +122,8 @@ client.on('interactionCreate', async (interaction) => {
     if (!queues.has(interaction.guild.id)) queues.set(interaction.guild.id, []);
     const queue = queues.get(interaction.guild.id);
 
-    if (player.track) {
+    // Membetulkan semakan status pemain
+    if (player.playing || player.current) {
       queue.push(track);
       return interaction.editReply(`Added to queue: **${track.info.title}**`);
     }
