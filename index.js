@@ -16,7 +16,7 @@ const Nodes = [{
 const commands = [
   new SlashCommandBuilder()
     .setName('play')
-    .setDescription('Play a song')
+    .setDescription(' a song')
     .addStringOption(opt => opt.setName('query').setDescription('Song name or URL').setRequired(true)),
   new SlashCommandBuilder()
     .setName('queue')
@@ -67,25 +67,25 @@ function getMusicButtons(paused = false) {
 
 client.on('interactionCreate', async (interaction) => {
   if (interaction.isButton()) {
-    const player = shoukaku.players.get(interaction.guild.id);
-    if (!player) return interaction.reply({ content: 'No song is playing!', ephemeral: true });
+    const er = shoukaku.ers.get(interaction.guild.id);
+    if (!er) return interaction.reply({ content: 'No song is ing!', ephemeral: true });
 
     if (interaction.customId === 'pause_resume') {
       const isPaused = pausedState.get(interaction.guild.id) || false;
-      await player.setPaused(!isPaused);
+      await er.setPaused(!isPaused);
       pausedState.set(interaction.guild.id, !isPaused);
       await interaction.update({ components: [getMusicButtons(!isPaused)] });
     }
 
     if (interaction.customId === 'skip') {
-      await player.stopTrack();
+      await er.stopTrack();
       await interaction.update({ content: 'Skipped!', components: [] });
     }
 
     if (interaction.customId === 'stop') {
       queues.delete(interaction.guild.id);
       pausedState.delete(interaction.guild.id);
-      player.disconnect();
+      er.disconnect();
       await interaction.update({ content: 'Stopped and left voice channel.', components: [] });
     }
     return;
@@ -94,10 +94,13 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const { commandName } = interaction;
 
-  if (commandName === 'play') {
+ if (commandName === 'play') {
+    // Balas serta-merta untuk mengelakkan ralat "The application did not respond"
+    await interaction.deferReply({ ephemeral: false }); 
+
     const query = interaction.options.getString('query');
     const voiceChannel = interaction.member?.voice?.channel;
-    if (!voiceChannel) return interaction.reply('Join a voice channel first!');
+    if (!voiceChannel) return interaction.editReply('Join a voice channel first!');
 
     await interaction.deferReply();
 
