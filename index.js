@@ -144,6 +144,9 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
+    // Mengaktifkan sambungan audio ke Discord
+    await player.connect();
+
     if (!queues.has(interaction.guild.id)) queues.set(interaction.guild.id, []);
     const queue = queues.get(interaction.guild.id);
 
@@ -152,7 +155,7 @@ client.on('interactionCreate', async (interaction) => {
       return interaction.editReply(`Added to queue: **${track.info.title}**`);
     }
 
-    await player.playTrack({ track });
+    await player.playTrack({ track: track.encoded });
     pausedState.set(interaction.guild.id, false);
 
     const embed = new EmbedBuilder()
@@ -167,13 +170,13 @@ client.on('interactionCreate', async (interaction) => {
       components: [getMusicButtons(false)]
     });
 
-    // Gelung (loop) acara 'end' yang dibetulkan supaya memainkan trek seterusnya
     player.removeAllListeners('end');
     player.on('end', async () => {
       const activeQueue = queues.get(interaction.guild.id) || [];
       if (activeQueue.length > 0) {
         const next = activeQueue.shift();
-        await player.playTrack({ track: next });
+        // Menggunakan track yang telah dikodkan untuk main semula
+        await player.playTrack({ track: next.encoded });
         pausedState.set(interaction.guild.id, false);
 
         const nextEmbed = new EmbedBuilder()
