@@ -1,222 +1,255 @@
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { 
+  Client, 
+  GatewayIntentBits, 
+  REST, 
+  Routes, 
+  SlashCommandBuilder, 
+  ActionRowBuilder, 
+  ButtonBuilder, 
+  ButtonStyle, 
+  EmbedBuilder, 
+  PermissionFlagsBits 
+} = require('discord.js');
+
 const { Shoukaku, Connectors } = require('shoukaku');
 
 const TOKEN = process.env.TOKEN;
-console.log('Token received:', TOKEN ? 'YES - length: ' + TOKEN.length : 'NO - undefined');
 const CLIENT_ID = process.env.CLIENT_ID;
 
+// ✅ FIXED Lavalink config (WAJIB guna ENV)
 const Nodes = [{
   name: 'main',
-  url: process.env.LAVALINK_HOST || 'localhost:2333',
-  auth: 'password123',
-  secure: true,
-  port: 443
+  url: process.env.LAVALINK_HOST,
+  auth: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
+  secure: false,
+  port: parseInt(process.env.LAVALINK_PORT) || 2333
 }];
 
+// ✅ Slash Commands
 const commands = [
   new SlashCommandBuilder()
     .setName('play')
     .setDescription('Play a song')
-    .addStringOption(opt => opt.setName('query').setDescription('Song name or URL').setRequired(true)),
+    .addStringOption(opt => 
+      opt.setName('query').setDescription('Song name or URL').setRequired(true)
+    ),
+
   new SlashCommandBuilder()
     .setName('queue')
     .setDescription('Show the queue'),
+
   new SlashCommandBuilder()
     .setName('clear')
     .setDescription('Clear messages')
-    .addIntegerOption(opt => opt.setName('amount').setDescription('Number of messages to delete (max 100)').setRequired(true))
+    .addIntegerOption(opt => 
+      opt.setName('amount').setDescription('Max 100').setRequired(true)
+    )
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+
 ].map(cmd => cmd.toJSON());
 
+// ✅ Register commands
 const rest = new REST({ version: '10' }).setToken(TOKEN);
-rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands })
-  .then(() => console.log('Slash commands registered!'))
-  .catch(console.error);
+rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
 
+// ✅ Client
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildVoiceStates
   ]
 });
 
+// ✅ Shoukaku
 const shoukaku = new Shoukaku(new Connectors.DiscordJS(client), Nodes);
-shoukaku.on('error', (_, error) => console.error(error));
 
+// Debug Lavalink
+shoukaku.on('ready', (name) => console.log(`Lavalink ${name} connected`));
+shoukaku.on('error', (_, err) => console.error('Lavalink error:', err));
+
+// Queue
 const queues = new Map();
 const pausedState = new Map();
 
-function getMusicButtons(paused = false) {
+// Buttons
+function getButtons(paused = false) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('pause_resume')
+      .setCustomId('pause')
       .setLabel(paused ? '▶ Resume' : '⏸ Pause')
       .setStyle(paused ? ButtonStyle.Success : ButtonStyle.Primary),
+
     new ButtonBuilder()
       .setCustomId('skip')
       .setLabel('⏭ Skip')
       .setStyle(ButtonStyle.Secondary),
+
     new ButtonBuilder()
       .setCustomId('stop')
       .setLabel('⏹ Stop')
-      .setStyle(ButtonStyle.Danger),
+      .setStyle(ButtonStyle.Danger)
   );
 }
 
+// 🎧 PLAY NEXT FUNCTION (IMPORTANT)
+async function playNext(guildId, channel) {
+  const player = shoukaku.players.get(guildId);
+  const queue = queues.get(guildId) || [];
+
+  if (!queue.length) {
+    pausedState.delete(guildId);
+    player?.disconnect();
+    return channel.send('Queue habis, aku cabut dulu 👋');
+  }
+
+  const next = queue.shift();
+  queues.set(guildId, queue);
+
+  await player.playTrack({ track: next });
+  pausedState.set(guildId, false);
+
+  const embed = new EmbedBuilder()
+    .setTitle('Now Playing')
+    .setDescription(`**${next.info.title}**`)
+    .setURL(`https://www.youtube.com/watch?v=${next.info.identifier}`)
+    .setThumbnail(`https://img.youtube.com/vi/${next.info.identifier}/hqdefault.jpg`)
+    .setColor(0xFF0000);
+
+  channel.send({ embeds: [embed], components: [getButtons(false)] });
+}
+
+// 🎯 Interaction
 client.on('interactionCreate', async (interaction) => {
 
+  // BUTTONS
   if (interaction.isButton()) {
     const player = shoukaku.players.get(interaction.guild.id);
-    if (!player) return interaction.reply({ content: 'No song is playing!', ephemeral: true });
+    if (!player) return interaction.reply({ content: 'Takde lagu bro', ephemeral: true });
 
-    if (interaction.customId === 'pause_resume') {
+    if (interaction.customId === 'pause') {
       const isPaused = pausedState.get(interaction.guild.id) || false;
       await player.setPaused(!isPaused);
       pausedState.set(interaction.guild.id, !isPaused);
-      await interaction.update({ components: [getMusicButtons(!isPaused)] });
+
+      return interaction.update({ components: [getButtons(!isPaused)] });
     }
 
     if (interaction.customId === 'skip') {
-      await player.stopTrack();
-      await interaction.update({ content: 'Skipped!', components: [] });
+      await player.stopTrack(); // trigger trackEnd
+      return interaction.update({ content: 'Skip ⏭', components: [] });
     }
 
     if (interaction.customId === 'stop') {
       queues.delete(interaction.guild.id);
       pausedState.delete(interaction.guild.id);
-      player.disconnect();
-      await interaction.update({ content: 'Stopped and left voice channel.', components: [] });
-    }
 
-    return;
+      player.disconnect();
+      return interaction.update({ content: 'Stop & keluar VC', components: [] });
+    }
   }
 
+  // COMMANDS
   if (!interaction.isChatInputCommand()) return;
 
-  const { commandName } = interaction;
-
-  if (commandName === 'play') {
+  if (interaction.commandName === 'play') {
     const query = interaction.options.getString('query');
-    const voiceChannel = interaction.member?.voice?.channel;
-    if (!voiceChannel) return interaction.reply('Join a voice channel first!');
+    const vc = interaction.member.voice.channel;
+
+    if (!vc) return interaction.reply('Masuk VC dulu bro');
 
     await interaction.deferReply();
 
     const node = shoukaku.nodes.values().next().value;
-    if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
-
-    const isUrl = query.startsWith('http');
-    let identifier = query;
-
-    if (!isUrl) {
-      identifier = `ytmsearch:${query}`;
-    }
+    if (!node) return interaction.editReply('Lavalink tak connect bro');
 
     let result;
     try {
-      result = await node.rest.resolve(identifier);
+      result = await node.rest.resolve(
+        query.startsWith('http') ? query : `ytsearch:${query}`
+      );
     } catch (e) {
-      console.error('Lavalink resolve error:', e);
+      console.error(e);
+      return interaction.editReply('Error cari lagu');
     }
 
-    if (!result || !result.data || !result.data.length) {
-      try {
-        result = await node.rest.resolve(`ytsearch:${query}`);
-      } catch (e) {
-        console.error('Fallback search failed:', e);
-      }
-    }
-
-    if (!result || !result.data || !result.data.length) {
-      return interaction.editReply('Song not found!');
+    if (!result?.data?.length) {
+      return interaction.editReply('Lagu tak jumpa');
     }
 
     const track = result.data[0];
-    
-    // Kod sambungan dan player diletakkan di sini (Baris 119 - 128)
+
+    // PLAYER
     let player = shoukaku.players.get(interaction.guild.id);
 
     if (!player) {
       player = await shoukaku.joinVoiceChannel({
         guildId: interaction.guild.id,
-        channelId: voiceChannel.id,
-        shardId: 0, // Pastikan shard ID betul
+        channelId: vc.id,
+        shardId: 0
+      });
+
+      // ✅ EVENT FIX (IMPORTANT)
+      player.on('trackEnd', () => {
+        playNext(interaction.guild.id, interaction.channel);
       });
     }
 
-    // Sambungkan pemain dengan node
-    await player.connect();
-
-    if (!queues.has(interaction.guild.id)) queues.set(interaction.guild.id, []);
-    const queue = queues.get(interaction.guild.id);
-
-    if (player.playing || player.current) {
-      queue.push(track);
-      return interaction.editReply(`Added to queue: **${track.info.title}**`);
+    // QUEUE
+    if (!queues.has(interaction.guild.id)) {
+      queues.set(interaction.guild.id, []);
     }
 
+    const queue = queues.get(interaction.guild.id);
+
+    // IF CURRENTLY PLAYING → QUEUE
+    if (player.track) {
+      queue.push(track);
+      return interaction.editReply(`Masuk queue: **${track.info.title}**`);
+    }
+
+    // PLAY FIRST
     await player.playTrack({ track });
     pausedState.set(interaction.guild.id, false);
 
     const embed = new EmbedBuilder()
       .setTitle('Now Playing')
       .setDescription(`**${track.info.title}**`)
-      .setThumbnail(`https://img.youtube.com/vi/${track.info.identifier}/hqdefault.jpg`)
       .setURL(`https://www.youtube.com/watch?v=${track.info.identifier}`)
+      .setThumbnail(`https://img.youtube.com/vi/${track.info.identifier}/hqdefault.jpg`)
       .setColor(0xFF0000);
 
-    await interaction.editReply({
+    interaction.editReply({
       embeds: [embed],
-      components: [getMusicButtons(false)]
-    });
-
-    player.removeAllListeners('end');
-    player.on('end', async () => {
-      const activeQueue = queues.get(interaction.guild.id) || [];
-      if (activeQueue.length > 0) {
-        const next = activeQueue.shift();
-        await player.playTrack({ track: next });
-        pausedState.set(interaction.guild.id, false);
-
-        const nextEmbed = new EmbedBuilder()
-          .setTitle('Now Playing')
-          .setDescription(`**${next.info.title}**`)
-          .setThumbnail(`https://img.youtube.com/vi/${next.info.identifier}/hqdefault.jpg`)
-          .setURL(`https://www.youtube.com/watch?v=${next.info.identifier}`)
-          .setColor(0xFF0000);
-
-        interaction.channel.send({
-          embeds: [nextEmbed],
-          components: [getMusicButtons(false)]
-        });
-      } else {
-        pausedState.delete(interaction.guild.id);
-        player.disconnect();
-        interaction.channel.send('Queue ended, leaving voice channel.');
-      }
+      components: [getButtons(false)]
     });
   }
 
-  if (commandName === 'queue') {
+  if (interaction.commandName === 'queue') {
     const queue = queues.get(interaction.guild.id) || [];
-    if (!queue.length) return interaction.reply('Queue is empty!');
-    const list = queue.map((t, i) => `${i+1}. ${t.info.title}`).join('\n');
-    interaction.reply(`**Queue:**\n${list}`);
+
+    if (!queue.length) {
+      return interaction.reply('Queue kosong bro');
+    }
+
+    const list = queue.map((t, i) => `${i + 1}. ${t.info.title}`).join('\n');
+    interaction.reply(`Queue:\n${list}`);
   }
 
-  if (commandName === 'clear') {
+  if (interaction.commandName === 'clear') {
     const amount = interaction.options.getInteger('amount');
-    if (amount < 1 || amount > 100) return interaction.reply({ content: 'Amount must be between 1 and 100!', ephemeral: true });
+
+    if (amount < 1 || amount > 100) {
+      return interaction.reply({ content: '1 - 100 je bro', ephemeral: true });
+    }
 
     await interaction.channel.bulkDelete(amount, true);
-    interaction.reply({ content: `Deleted ${amount} messages!`, ephemeral: true });
+    interaction.reply({ content: `Deleted ${amount}`, ephemeral: true });
   }
 });
 
+// READY
 client.once('clientReady', () => {
-  console.log(`Ready! Logged in as ${client.user.tag}`);
+  console.log(`Logged in as ${client.user.tag}`);
 });
 
-client.login(process.env.TOKEN);
+client.login(TOKEN);
