@@ -111,7 +111,7 @@ client.on('interactionCreate', async (interaction) => {
     let identifier = query;
 
     if (!isUrl) {
-      identifier = `ytmsearch:${query}`;
+      identifier = `ytsearch:${query}`;
     }
 
     let result;
