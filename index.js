@@ -9,8 +9,8 @@ const Nodes = [{
   name: 'main',
   url: process.env.LAVALINK_HOST || 'lavalink-production-4215.up.railway.app',
   auth: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
-  secure: true,
-  port: 443
+  secure: false,
+  port: 2333
 }];
 
 const commands = [
