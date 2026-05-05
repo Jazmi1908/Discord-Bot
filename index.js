@@ -6,10 +6,10 @@ const CLIENT_ID = process.env.CLIENT_ID;
 
 const Nodes = [{
   name: 'main',
-  url: 'lavalink.jirayu.net',
-  auth: 'youshallnotpass',
-  secure: false,
-  port: 2333
+  url: process.env.LAVALINK_HOST || 'localhost:2333',
+  auth: 'password123',
+  secure: true,
+  port: 443
 }];
 
 const commands = [
