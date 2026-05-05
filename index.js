@@ -9,7 +9,31 @@ const Nodes = [{
   name: 'main',
   url: process.env.LAVALINK_HOST || 'lavalink-production-4215.up.railway.app',
   auth: process.env.LAVALINK_PASSWORD || 'youshallnotpass',
-  secure: true, 
+  secure: true, const isUrl = query.startsWith('http');
+    let identifier = query;
+
+    // Jika bukan URL, kita cuba guna carian ytsearch
+    if (!isUrl) {
+      identifier = `ytsearch:${query}`;
+    }
+
+    let result;
+    try {
+      result = await node.rest.resolve(identifier);
+    } catch (e) {
+      console.error('Lavalink resolve error:', e);
+    }
+
+    // Jika carian gagal, kita cuba guna pautan terus/fallback ringkas
+    if (!result || !result.data || !result.data.length) {
+      try {
+        if (!isUrl) {
+          result = await node.rest.resolve(`ytsearch:${query}`);
+        }
+      } catch (e) {
+        console.error('Fallback search failed:', e);
+      }
+    }
   port: 433 
 }];
 
@@ -107,9 +131,10 @@ client.on('interactionCreate', async (interaction) => {
     const node = shoukaku.nodes.values().next().value;
     if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
 
-    const isUrl = query.startsWith('http');
+   const isUrl = query.startsWith('http');
     let identifier = query;
 
+    // Jika bukan URL, kita cuba guna carian ytsearch
     if (!isUrl) {
       identifier = `ytsearch:${query}`;
     }
@@ -121,9 +146,12 @@ client.on('interactionCreate', async (interaction) => {
       console.error('Lavalink resolve error:', e);
     }
 
+    // Jika carian gagal, kita cuba guna pautan terus/fallback ringkas
     if (!result || !result.data || !result.data.length) {
       try {
-        result = await node.rest.resolve(`ytsearch:${query}`);
+        if (!isUrl) {
+          result = await node.rest.resolve(`ytsearch:${query}`);
+        }
       } catch (e) {
         console.error('Fallback search failed:', e);
       }
