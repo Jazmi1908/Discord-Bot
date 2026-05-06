@@ -150,8 +150,6 @@ client.on('interactionCreate', async (interaction) => {
       });
     }
 
-    await player.connect();
-
     if (!queues.has(interaction.guild.id)) queues.set(interaction.guild.id, []);
     const queue = queues.get(interaction.guild.id);
 
