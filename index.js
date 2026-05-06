@@ -194,7 +194,7 @@ client.on('interactionCreate', async (interaction) => {
         });
       } else {
         pausedState.delete(interaction.guild.id);
-        player.disconnect();
+        await shoukaku.leaveVoiceChannel(interaction.guild.id);
         interaction.channel.send('Queue ended, leaving voice channel.');
       }
     });
