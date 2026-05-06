@@ -7,7 +7,7 @@ const CLIENT_ID = process.env.CLIENT_ID;
 
 const Nodes = [{
   name: 'main',
-  url: '127.0.0.1',
+  url: '127.0.0.1:2333',
   auth: process.env.LAVALINK_PASSWORD || 'password123',
   secure: false,
   port: 2333
