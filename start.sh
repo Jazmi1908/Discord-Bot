@@ -1,4 +1,4 @@
 #!/bin/bash
 java -jar Lavalink.jar &
-sleep 10
+sleep 15
 node index.js
