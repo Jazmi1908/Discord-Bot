@@ -74,145 +74,168 @@ function getMusicButtons(paused = false) {
 }
 
 client.on('interactionCreate', async (interaction) => {
-  if (interaction.isButton()) {
-    const er = shoukaku.players.get(interaction.guild.id);
-    if (!er) return interaction.reply({ content: 'No song is ing!', ephemeral: true });
+  try {
 
-    if (interaction.customId === 'pause_resume') {
-      const isPaused = pausedState.get(interaction.guild.id) || false;
-      await er.setPaused(!isPaused);
-      pausedState.set(interaction.guild.id, !isPaused);
-      await interaction.update({ components: [getMusicButtons(!isPaused)] });
-    }
-
-    if (interaction.customId === 'skip') {
-      await er.stopTrack();
-      await interaction.update({ content: 'Skipped!', components: [] });
-    }
-
-    if (interaction.customId === 'stop') {
-      queues.delete(interaction.guild.id);
-      pausedState.delete(interaction.guild.id);
-      er.disconnect();
-      await interaction.update({ content: 'Stopped and left voice channel.', components: [] });
-    }
-    return;
-  }
-
-  if (!interaction.isChatInputCommand()) return;
-  const { commandName } = interaction;
-
- if (commandName === 'play') {
-  await interaction.deferReply(); // ← SEKALI je, buang yang kedua
-
-  const query = interaction.options.getString('query');
-  const voiceChannel = interaction.member?.voice?.channel;
-  if (!voiceChannel) return interaction.editReply('Join a voice channel first!');
-
-  // BUANG baris deferReply kedua yang ada kat bawah tu
-  const node = shoukaku.nodes.values().next().value;
-    if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
-
-    let identifier = query;
-    const isUrl = query.startsWith('http');
-
-    if (!isUrl) {
-      identifier = `ytsearch:${query}`;
-    }
-
-    let result;
-    try {
-      result = await node.rest.resolve(identifier);
-    } catch (e) {
-      console.error('Lavalink resolve error:', e);
-    }
-
-    if (!result || !result.data || !result.data.length) {
-      try {
-        result = await node.rest.resolve(`ytsearch:${query}`);
-      } catch (e) {
-        console.error('Fallback search failed:', e);
+    // ================= BUTTON =================
+    if (interaction.isButton()) {
+      const player = shoukaku.players.get(interaction.guild.id);
+      if (!player) {
+        return interaction.reply({ content: 'No song is playing!', ephemeral: true });
       }
+
+      if (interaction.customId === 'pause_resume') {
+        const isPaused = pausedState.get(interaction.guild.id) || false;
+        await player.setPaused(!isPaused);
+        pausedState.set(interaction.guild.id, !isPaused);
+
+        return interaction.update({ components: [getMusicButtons(!isPaused)] });
+      }
+
+      if (interaction.customId === 'skip') {
+        await player.stopTrack();
+        return interaction.update({ content: 'Skipped!', components: [] });
+      }
+
+      if (interaction.customId === 'stop') {
+        queues.delete(interaction.guild.id);
+        pausedState.delete(interaction.guild.id);
+        player.disconnect();
+
+        return interaction.update({ content: 'Stopped and left VC.', components: [] });
+      }
+
+      return;
     }
 
-    if (!result || !result.data || !result.data.length) {
-      return interaction.editReply('Song not found!');
-    }
+    // ================= COMMAND =================
+    if (!interaction.isChatInputCommand()) return;
 
-    const track = result.data[0];
-    let player = shoukaku.players.get(interaction.guild.id);
+    const { commandName } = interaction;
 
-    if (!player) {
-      player = await shoukaku.joinVoiceChannel({
-        guildId: interaction.guild.id,
-        channelId: voiceChannel.id,
-        shardId: 0,
+    // ================= PLAY =================
+    if (commandName === 'play') {
+      await interaction.deferReply(); // ✅ WAJIB paling awal
+
+      const query = interaction.options.getString('query');
+      const voiceChannel = interaction.member?.voice?.channel;
+
+      if (!voiceChannel) {
+        return interaction.editReply('Join voice channel dulu bro.');
+      }
+
+      const node = shoukaku.nodes.values().next().value;
+      if (!node) {
+        return interaction.editReply('Lavalink tak connect.');
+      }
+
+      let identifier = query.startsWith('http') ? query : `ytsearch:${query}`;
+
+      let result;
+      try {
+        result = await node.rest.resolve(identifier);
+      } catch (e) {
+        console.error(e);
+      }
+
+      if (!result?.data?.length) {
+        return interaction.editReply('Song not found!');
+      }
+
+      const track = result.data[0];
+      let player = shoukaku.players.get(interaction.guild.id);
+
+      if (!player) {
+        player = await shoukaku.joinVoiceChannel({
+          guildId: interaction.guild.id,
+          channelId: voiceChannel.id,
+          shardId: 0,
+        });
+      }
+
+      if (!queues.has(interaction.guild.id)) {
+        queues.set(interaction.guild.id, []);
+      }
+
+      const queue = queues.get(interaction.guild.id);
+
+      if (player.playing || player.current) {
+        queue.push(track);
+        return interaction.editReply(`Added to queue: **${track.info.title}**`);
+      }
+
+      await player.playTrack({ track: { encoded: track.encoded } });
+
+      const embed = new EmbedBuilder()
+        .setTitle('Now Playing')
+        .setDescription(`**${track.info.title}**`)
+        .setThumbnail(`https://img.youtube.com/vi/${track.info.identifier}/hqdefault.jpg`)
+        .setColor(0xFF0000);
+
+      await interaction.editReply({
+        embeds: [embed],
+        components: [getMusicButtons(false)]
+      });
+
+      // 🔥 FIX BESAR KAT SINI
+      player.removeAllListeners('end');
+
+      player.on('end', async () => {
+        const activeQueue = queues.get(interaction.guild.id) || [];
+
+        if (activeQueue.length > 0) {
+          const next = activeQueue.shift();
+
+          // ❌ BUG ASAL: guna track lama
+          await player.playTrack({ track: { encoded: next.encoded } });
+
+          interaction.channel.send(`Now playing: **${next.info.title}**`);
+        } else {
+          pausedState.delete(interaction.guild.id);
+          await shoukaku.leaveVoiceChannel(interaction.guild.id);
+
+          interaction.channel.send('Queue habis, keluar VC.');
+        }
       });
     }
 
-    if (!queues.has(interaction.guild.id)) queues.set(interaction.guild.id, []);
-    const queue = queues.get(interaction.guild.id);
+    // ================= QUEUE =================
+    if (commandName === 'queue') {
+      const queue = queues.get(interaction.guild.id) || [];
 
-    if (player.playing || player.current) {
-      queue.push(track);
-      return interaction.editReply(`Added to queue: **${track.info.title}**`);
+      if (!queue.length) {
+        return interaction.reply({ content: 'Queue kosong.', ephemeral: true });
+      }
+
+      const list = queue.map((t, i) => `${i + 1}. ${t.info.title}`).join('\n');
+
+      return interaction.reply(`**Queue:**\n${list}`);
     }
 
-    await player.playTrack({ track: { encoded: next.encoded } });
-    pausedState.set(interaction.guild.id, false);
+    // ================= CLEAR =================
+    if (commandName === 'clear') {
+      const amount = interaction.options.getInteger('amount');
 
-    const embed = new EmbedBuilder()
-      .setTitle('Now Playing')
-      .setDescription(`**${track.info.title}**`)
-      .setThumbnail(`https://img.youtube.com/vi/${track.info.identifier}/hqdefault.jpg`)
-      .setURL(`https://www.youtube.com/watch?v=${track.info.identifier}`)
-      .setColor(0xFF0000);
-
-    await interaction.editReply({
-      embeds: [embed],
-      components: [getMusicButtons(false)]
-    });
-
-    player.removeAllListeners('end');
-    player.on('end', async () => {
-      const activeQueue = queues.get(interaction.guild.id) || [];
-      if (activeQueue.length > 0) {
-        const next = activeQueue.shift();
-        await player.playTrack({ track: { encoded: track.encoded } });
-        pausedState.set(interaction.guild.id, false);
-
-        const nextEmbed = new EmbedBuilder()
-          .setTitle('Now Playing')
-          .setDescription(`**${next.info.title}**`)
-          .setThumbnail(`https://img.youtube.com/vi/${next.info.identifier}/hqdefault.jpg`)
-          .setURL(`https://www.youtube.com/watch?v=${next.info.identifier}`)
-          .setColor(0xFF0000);
-
-        interaction.channel.send({
-          embeds: [nextEmbed],
-          components: [getMusicButtons(false)]
-        });
-      } else {
-        pausedState.delete(interaction.guild.id);
-        await shoukaku.leaveVoiceChannel(interaction.guild.id);
-        interaction.channel.send('Queue ended, leaving voice channel.');
+      if (amount < 1 || amount > 100) {
+        return interaction.reply({ content: '1 - 100 je.', ephemeral: true });
       }
-    });
-  }
 
-  if (commandName === 'queue') {
-    const queue = queues.get(interaction.guild.id) || [];
-    if (!queue.length) return interaction.reply('Queue is empty!');
-    const list = queue.map((t, i) => `${i+1}. ${t.info.title}`).join('\n');
-    interaction.reply(`**Queue:**\n${list}`);
-  }
+      await interaction.channel.bulkDelete(amount, true);
 
-  if (commandName === 'clear') {
-    const amount = interaction.options.getInteger('amount');
-    if (amount < 1 || amount > 100) return interaction.reply({ content: 'Amount must be between 1 and 100!', ephemeral: true });
+      return interaction.reply({
+        content: `Deleted ${amount} messages.`,
+        ephemeral: true
+      });
+    }
 
-    await interaction.channel.bulkDelete(amount, true);
-    interaction.reply({ content: `Deleted ${amount} messages!`, ephemeral: true });
+  } catch (err) {
+    console.error(err);
+
+    // 🔥 SAFE REPLY (avoid unknown interaction)
+    if (interaction.deferred || interaction.replied) {
+      interaction.editReply('Ada error bro.');
+    } else {
+      interaction.reply({ content: 'Ada error bro.', ephemeral: true });
+    }
   }
 });
 
