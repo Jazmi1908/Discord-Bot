@@ -158,7 +158,7 @@ client.on('interactionCreate', async (interaction) => {
       return interaction.editReply(`Added to queue: **${track.info.title}**`);
     }
 
-    await player.playTrack({ track: { encoded: track.encoded } });
+    await player.playTrack({ track: { encoded: next.encoded } });
     pausedState.set(interaction.guild.id, false);
 
     const embed = new EmbedBuilder()
