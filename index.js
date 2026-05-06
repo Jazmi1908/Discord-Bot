@@ -10,7 +10,7 @@ const Nodes = [{
   url: process.env.LAVALINK_HOST || 'lavalink-production-4215.up.railway.app',
   auth: process.env.LAVALINK_PASSWORD || 'password123',
   secure: true,
-  port: 433
+  port: 443  // ← tukar dari 433 ke 443
 }];
 
 const commands = [
@@ -67,7 +67,7 @@ function getMusicButtons(paused = false) {
 
 client.on('interactionCreate', async (interaction) => {
   if (interaction.isButton()) {
-    const er = shoukaku.ers.get(interaction.guild.id);
+    const er = shoukaku.players.get(interaction.guild.id);
     if (!er) return interaction.reply({ content: 'No song is ing!', ephemeral: true });
 
     if (interaction.customId === 'pause_resume') {
@@ -95,16 +95,14 @@ client.on('interactionCreate', async (interaction) => {
   const { commandName } = interaction;
 
  if (commandName === 'play') {
-    // Balas serta-merta untuk mengelakkan ralat "The application did not respond"
-    await interaction.deferReply({ ephemeral: false }); 
+  await interaction.deferReply(); // ← SEKALI je, buang yang kedua
 
-    const query = interaction.options.getString('query');
-    const voiceChannel = interaction.member?.voice?.channel;
-    if (!voiceChannel) return interaction.editReply('Join a voice channel first!');
+  const query = interaction.options.getString('query');
+  const voiceChannel = interaction.member?.voice?.channel;
+  if (!voiceChannel) return interaction.editReply('Join a voice channel first!');
 
-    await interaction.deferReply();
-
-    const node = shoukaku.nodes.values().next().value;
+  // BUANG baris deferReply kedua yang ada kat bawah tu
+  const node = shoukaku.nodes.values().next().value;
     if (!node) return interaction.editReply('Tiada sambungan Lavalink node yang aktif.');
 
     let identifier = query;
