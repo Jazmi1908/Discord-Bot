@@ -6,22 +6,14 @@ lavalink:
   server:
     password: "password123"
     sources:
-      youtube: true 
+      youtube: false
       soundcloud: true
 
 plugins:
   youtube:
     enabled: true
     allowSearch: true
-  
-  # Tetapan LavaSrc ditambah di sini
-  lavasrc:
-    providers:
-      - "ytsearch:\"%q%\""
-      - "scsearch:\"%q%\""
-    sources:
-      spotify: true
-      applemusic: true
-      deezer: true
+    allowDirectVideoIds: true
+    allowDirectPlaylistIds: true
 
 pluginsDir: "./plugins"
