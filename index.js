@@ -178,7 +178,7 @@ client.on('interactionCreate', async (interaction) => {
       const activeQueue = queues.get(interaction.guild.id) || [];
       if (activeQueue.length > 0) {
         const next = activeQueue.shift();
-        await player.playTrack({ track: next.encoded });
+        await player.playTrack({ track: { encoded: track.encoded } });
         pausedState.set(interaction.guild.id, false);
 
         const nextEmbed = new EmbedBuilder()
