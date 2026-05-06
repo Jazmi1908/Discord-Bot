@@ -7,10 +7,10 @@ const CLIENT_ID = process.env.CLIENT_ID;
 
 const Nodes = [{
   name: 'main',
-  url: process.env.LAVALINK_HOST || 'lavalink-production-4215.up.railway.app',
+  url: 'localhost',
   auth: process.env.LAVALINK_PASSWORD || 'password123',
-  secure: true,
-  port: 443  // ← tukar dari 433 ke 443
+  secure: false,
+  port: 2333
 }];
 
 const commands = [
