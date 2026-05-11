@@ -16,7 +16,7 @@ const Nodes = [{
 const commands = [
   new SlashCommandBuilder()
     .setName('play')
-    .setDescription(' a song')
+    .setDescription('Play a song')
     .addStringOption(opt => opt.setName('query').setDescription('Song name or URL').setRequired(true)),
   new SlashCommandBuilder()
     .setName('queue')
@@ -76,7 +76,6 @@ function getMusicButtons(paused = false) {
 client.on('interactionCreate', async (interaction) => {
   try {
 
-    // ================= BUTTON =================
     if (interaction.isButton()) {
       const player = shoukaku.players.get(interaction.guild.id);
       if (!player) {
@@ -87,7 +86,6 @@ client.on('interactionCreate', async (interaction) => {
         const isPaused = pausedState.get(interaction.guild.id) || false;
         await player.setPaused(!isPaused);
         pausedState.set(interaction.guild.id, !isPaused);
-
         return interaction.update({ components: [getMusicButtons(!isPaused)] });
       }
 
@@ -99,22 +97,19 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.customId === 'stop') {
         queues.delete(interaction.guild.id);
         pausedState.delete(interaction.guild.id);
-        player.disconnect();
-
+        await shoukaku.leaveVoiceChannel(interaction.guild.id);
         return interaction.update({ content: 'Stopped and left VC.', components: [] });
       }
 
       return;
     }
 
-    // ================= COMMAND =================
     if (!interaction.isChatInputCommand()) return;
 
     const { commandName } = interaction;
 
-    // ================= PLAY =================
     if (commandName === 'play') {
-      await interaction.deferReply(); // ✅ WAJIB paling awal
+      await interaction.deferReply();
 
       const query = interaction.options.getString('query');
       const voiceChannel = interaction.member?.voice?.channel;
@@ -128,7 +123,7 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.editReply('Lavalink tak connect.');
       }
 
-      let identifier = query.startsWith('http') ? query : `ytsearch:${query}`;
+      let identifier = query.startsWith('http') ? query : `spsearch:${query}`;
 
       let result;
       try {
@@ -168,15 +163,14 @@ client.on('interactionCreate', async (interaction) => {
       const embed = new EmbedBuilder()
         .setTitle('Now Playing')
         .setDescription(`**${track.info.title}**`)
-        .setThumbnail(`https://img.youtube.com/vi/${track.info.identifier}/hqdefault.jpg`)
-        .setColor(0xFF0000);
+        .setThumbnail(track.info.artworkUrl || `https://img.youtube.com/vi/${track.info.identifier}/hqdefault.jpg`)
+        .setColor(0x1DB954);
 
       await interaction.editReply({
         embeds: [embed],
         components: [getMusicButtons(false)]
       });
 
-      // 🔥 FIX BESAR KAT SINI
       player.removeAllListeners('end');
 
       player.on('end', async () => {
@@ -184,53 +178,36 @@ client.on('interactionCreate', async (interaction) => {
 
         if (activeQueue.length > 0) {
           const next = activeQueue.shift();
-
-          // ❌ BUG ASAL: guna track lama
           await player.playTrack({ track: { encoded: next.encoded } });
-
           interaction.channel.send(`Now playing: **${next.info.title}**`);
         } else {
           pausedState.delete(interaction.guild.id);
           await shoukaku.leaveVoiceChannel(interaction.guild.id);
-
           interaction.channel.send('Queue habis, keluar VC.');
         }
       });
     }
 
-    // ================= QUEUE =================
     if (commandName === 'queue') {
       const queue = queues.get(interaction.guild.id) || [];
-
       if (!queue.length) {
         return interaction.reply({ content: 'Queue kosong.', ephemeral: true });
       }
-
       const list = queue.map((t, i) => `${i + 1}. ${t.info.title}`).join('\n');
-
       return interaction.reply(`**Queue:**\n${list}`);
     }
 
-    // ================= CLEAR =================
     if (commandName === 'clear') {
       const amount = interaction.options.getInteger('amount');
-
       if (amount < 1 || amount > 100) {
         return interaction.reply({ content: '1 - 100 je.', ephemeral: true });
       }
-
       await interaction.channel.bulkDelete(amount, true);
-
-      return interaction.reply({
-        content: `Deleted ${amount} messages.`,
-        ephemeral: true
-      });
+      return interaction.reply({ content: `Deleted ${amount} messages.`, ephemeral: true });
     }
 
   } catch (err) {
     console.error(err);
-
-    // 🔥 SAFE REPLY (avoid unknown interaction)
     if (interaction.deferred || interaction.replied) {
       interaction.editReply('Ada error bro.');
     } else {
